@@ -7,78 +7,62 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 
 
-# ============================================================
-# YOLLAR
-# ============================================================
+# ========================================
+# PROJE YOLLARI
+# ========================================
 
 BASE_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..")
 )
 
 HAND_MODEL = os.path.join(
-    BASE_DIR,
-    "models",
-    "hand_landmarker.task"
+    BASE_DIR, "models", "hand_landmarker.task"
 )
 
 FACE_MODEL = os.path.join(
-    BASE_DIR,
-    "models",
-    "face_landmarker.task"
+    BASE_DIR, "models", "face_landmarker.task"
 )
 
 POSE_MODEL = os.path.join(
-    BASE_DIR,
-    "models",
-    "pose_landmarker_full.task"
+    BASE_DIR, "models", "pose_landmarker_full.task"
 )
 
 DATASET_DIR = os.path.join(
-    BASE_DIR,
-    "dataset"
+    BASE_DIR, "dataset"
 )
 
 
-# ============================================================
+# ========================================
 # AYARLAR
-# ============================================================
+# ========================================
 
 FPS = 30
 
 MIN_FRAMES = 15
-
 MAX_FRAMES = 180
 
 
-# ============================================================
+# ========================================
 # YÜZ LANDMARKLARI
-# ============================================================
+# ========================================
 
 FACE_INDICES = [
-
-    # Sol kaş
     46, 53, 52, 65, 55,
-
-    # Sağ kaş
     276, 283, 282, 295, 285,
 
-    # Sol göz
     33, 133, 159, 145, 160, 144,
 
-    # Sağ göz
     362, 263, 386, 374, 387, 373,
 
-    # Ağız
     61, 291, 0, 17, 13, 14, 78, 308,
 
-    # Burun / yüz merkezi
     1, 4, 5, 6
 ]
 
 
-# ============================================================
-# MEDIAPIPE
-# ============================================================
+# ========================================
+# MEDIAPIPE AYARLARI
+# ========================================
 
 BaseOptions = python.BaseOptions
 
@@ -122,9 +106,9 @@ pose_detector = vision.PoseLandmarker.create_from_options(
 )
 
 
-# ============================================================
+# ========================================
 # YARDIMCI FONKSİYONLAR
-# ============================================================
+# ========================================
 
 def landmark_xyz(landmark):
     return [
@@ -142,6 +126,21 @@ def empty_hand():
 
 
 def normalize_frame(points):
+    """
+    Tüm landmarkları omuz merkezine göre
+    normalize eder.
+
+    combined sıralaması:
+
+    0-20    : sol el
+    21-41   : sağ el
+    42-74   : pose
+    75-108  : yüz
+
+    Pose landmark:
+    11 = sol omuz -> combined 53
+    12 = sağ omuz -> combined 54
+    """
 
     points = points.copy()
 
@@ -152,23 +151,20 @@ def normalize_frame(points):
         neginf=0.0
     )
 
-    # Pose:
-    # 11 = sol omuz
-    # 12 = sağ omuz
-
+    # DOĞRU OMUZ İNDEKSLERİ
     left_shoulder = points[53]
     right_shoulder = points[54]
 
+    # Omuzların merkezi
     center = (
-        left_shoulder +
-        right_shoulder
+        left_shoulder + right_shoulder
     ) / 2.0
 
     points -= center
 
+    # Omuz mesafesine göre ölçekleme
     shoulder_distance = np.linalg.norm(
-        left_shoulder -
-        right_shoulder
+        left_shoulder - right_shoulder
     )
 
     if shoulder_distance > 1e-6:
@@ -190,7 +186,6 @@ def next_number(folder):
 
         try:
             numbers.append(int(name))
-
         except ValueError:
             pass
 
@@ -200,9 +195,45 @@ def next_number(folder):
     return max(numbers) + 1
 
 
-# ============================================================
-# KELİME SEÇ
-# ============================================================
+# ========================================
+# MOUSE KONTROL DEĞİŞKENLERİ
+# ========================================
+
+recording = False
+save_requested = False
+
+
+def mouse_callback(event, x, y, flags, param):
+
+    global recording
+    global save_requested
+
+    # SAĞ TIK → KAYIT BAŞLAT
+    if event == cv2.EVENT_RBUTTONDOWN:
+
+        if not recording:
+
+            recording = True
+
+            print()
+            print("================================")
+            print("KAYIT BAŞLADI")
+            print("================================")
+            print()
+
+
+    # SOL TIK → KAYDI BİTİR
+    elif event == cv2.EVENT_LBUTTONDOWN:
+
+        if recording:
+
+            recording = False
+            save_requested = True
+
+
+# ========================================
+# PROGRAM BAŞLANGICI
+# ========================================
 
 print()
 print("========================================")
@@ -230,7 +261,6 @@ labels = {
 
 
 if choice not in labels:
-
     raise ValueError(
         "Geçersiz kelime seçimi."
     )
@@ -239,9 +269,9 @@ if choice not in labels:
 label = labels[choice]
 
 
-# ============================================================
-# KLASÖR
-# ============================================================
+# ========================================
+# KAYIT KLASÖRÜ
+# ========================================
 
 save_dir = os.path.join(
     DATASET_DIR,
@@ -265,11 +295,12 @@ save_path = os.path.join(
 )
 
 
-# ============================================================
+# ========================================
 # KAMERA
-# ============================================================
+# ========================================
 
 cap = cv2.VideoCapture(0)
+
 
 if not cap.isOpened():
 
@@ -278,29 +309,43 @@ if not cap.isOpened():
     )
 
 
+# ========================================
+# MOUSE CALLBACK
+# ========================================
+
+WINDOW_NAME = "TID Dataset Recorder V2"
+
+cv2.namedWindow(
+    WINDOW_NAME
+)
+
+cv2.setMouseCallback(
+    WINDOW_NAME,
+    mouse_callback
+)
+
+
+# ========================================
+# BAŞLANGIÇ
+# ========================================
+
 print()
 print(f"Kelime: {label.upper()}")
 print()
-print("R = kayıt başlat")
-print("S = kayıt durdur ve kaydet")
-print("Q = çık")
+print("SAĞ TIK  = Kaydı başlat")
+print("SOL TIK  = Kaydı bitir ve kaydet")
+print("Q        = Çıkış")
 print()
 
-
-# ============================================================
-# DEĞİŞKENLER
-# ============================================================
-
-recording = False
 
 frames = []
 
 timestamp_ms = 0
 
 
-# ============================================================
+# ========================================
 # ANA DÖNGÜ
-# ============================================================
+# ========================================
 
 while True:
 
@@ -314,6 +359,10 @@ while True:
 
         break
 
+
+    # ====================================
+    # RGB
+    # ====================================
 
     rgb = cv2.cvtColor(
         frame,
@@ -332,18 +381,19 @@ while True:
     )
 
 
-    # ========================================================
+    # ====================================
     # EL
-    # ========================================================
+    # ====================================
 
-    hand_result = hand_detector.detect_for_video(
-        mp_image,
-        timestamp_ms
+    hand_result = (
+        hand_detector.detect_for_video(
+            mp_image,
+            timestamp_ms
+        )
     )
 
 
     left_hand = empty_hand()
-
     right_hand = empty_hand()
 
 
@@ -361,9 +411,6 @@ while True:
                 dtype=np.float32
             )
 
-
-            # MediaPipe handedness
-            # bilgisi kullanılıyor.
 
             if (
                 hand_result.handedness
@@ -383,14 +430,15 @@ while True:
 
                     left_hand = points
 
+
                 elif handedness == "Right":
 
                     right_hand = points
 
 
-    # ========================================================
+    # ====================================
     # POSE
-    # ========================================================
+    # ====================================
 
     pose = np.zeros(
         (33, 3),
@@ -398,26 +446,29 @@ while True:
     )
 
 
-    if pose_result := pose_detector.detect_for_video(
-        mp_image,
-        timestamp_ms
-    ):
-
-        if pose_result.pose_landmarks:
-
-            pose = np.array(
-                [
-                    landmark_xyz(lm)
-                    for lm in
-                    pose_result.pose_landmarks[0]
-                ],
-                dtype=np.float32
-            )
+    pose_result = (
+        pose_detector.detect_for_video(
+            mp_image,
+            timestamp_ms
+        )
+    )
 
 
-    # ========================================================
-    # YÜZ
-    # ========================================================
+    if pose_result.pose_landmarks:
+
+        pose = np.array(
+            [
+                landmark_xyz(lm)
+                for lm in pose_result
+                .pose_landmarks[0]
+            ],
+            dtype=np.float32
+        )
+
+
+    # ====================================
+    # FACE
+    # ====================================
 
     face = np.zeros(
         (len(FACE_INDICES), 3),
@@ -425,9 +476,11 @@ while True:
     )
 
 
-    face_result = face_detector.detect_for_video(
-        mp_image,
-        timestamp_ms
+    face_result = (
+        face_detector.detect_for_video(
+            mp_image,
+            timestamp_ms
+        )
     )
 
 
@@ -464,9 +517,9 @@ while True:
         )
 
 
-    # ========================================================
+    # ====================================
     # BİRLEŞTİR
-    # ========================================================
+    # ====================================
 
     combined = np.concatenate(
         [
@@ -479,18 +532,18 @@ while True:
     )
 
 
-    # ========================================================
+    # ====================================
     # NORMALİZASYON
-    # ========================================================
+    # ====================================
 
     combined = normalize_frame(
         combined
     )
 
 
-    # ========================================================
+    # ====================================
     # KAYIT
-    # ========================================================
+    # ====================================
 
     if recording:
 
@@ -501,9 +554,9 @@ while True:
             )
 
 
-    # ========================================================
-    # EKRAN
-    # ========================================================
+    # ====================================
+    # EKRAN YAZILARI
+    # ====================================
 
     if recording:
 
@@ -516,6 +569,7 @@ while True:
             (0, 0, 255),
             3
         )
+
 
         cv2.putText(
             frame,
@@ -531,7 +585,7 @@ while True:
 
         cv2.putText(
             frame,
-            f"Hazir: {label.upper()}",
+            f"HAZIR: {label.upper()}",
             (20, 40),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.8,
@@ -542,121 +596,97 @@ while True:
 
     cv2.putText(
         frame,
-        "R: Kayit | S: Kaydet | Q: Cikis",
+        "SAG TIK: Baslat | SOL TIK: Kaydet | Q: Cikis",
         (20, frame.shape[0] - 20),
         cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
+        0.55,
         (255, 255, 255),
         2
     )
 
 
+    # ====================================
+    # GÖSTER
+    # ====================================
+
     cv2.imshow(
-        "TID Dataset Recorder V2",
+        WINDOW_NAME,
         frame
     )
 
 
-    # ========================================================
+    # ====================================
     # KLAVYE
-    # ========================================================
+    # ====================================
 
     key = cv2.waitKey(1) & 0xFF
 
 
-    # --------------------------------------------------------
-    # R
-    # --------------------------------------------------------
+    # Q → ÇIKIŞ
 
-    if key == ord("r"):
-
-        if not recording:
-
-            frames = []
-
-            recording = True
-
-            print(
-                "Kayıt başladı..."
-            )
-
-
-    # --------------------------------------------------------
-    # S
-    # --------------------------------------------------------
-
-    elif key == ord("s"):
-
-        if recording:
-
-            recording = False
-
-
-            if len(frames) < MIN_FRAMES:
-
-                print(
-                    f"UYARI: {len(frames)} frame."
-                )
-
-                print(
-                    "Kayıt çok kısa, "
-                    "kaydedilmedi."
-                )
-
-                frames = []
-
-
-            else:
-
-                sequence = np.array(
-                    frames,
-                    dtype=np.float32
-                )
-
-
-                np.save(
-                    save_path,
-                    sequence
-                )
-
-
-                print()
-                print(
-                    "================================"
-                )
-                print(
-                    "KAYIT BAŞARILI"
-                )
-                print(
-                    "================================"
-                )
-                print(
-                    f"Dosya : {save_path}"
-                )
-                print(
-                    f"Shape : {sequence.shape}"
-                )
-                print(
-                    f"Frame : {len(sequence)}"
-                )
-                print()
-
-
-                break
-
-
-    # --------------------------------------------------------
-    # Q
-    # --------------------------------------------------------
-
-    elif key == ord("q"):
+    if key == ord("q"):
 
         break
 
 
-# ============================================================
-# TEMİZLİK
-# ============================================================
+    # ====================================
+    # SOL TIK İLE KAYIT İSTEĞİ
+    # ====================================
+
+    if save_requested:
+
+        save_requested = False
+
+
+        if len(frames) < MIN_FRAMES:
+
+            print(
+                f"UYARI: {len(frames)} frame."
+            )
+
+            print(
+                "Kayıt çok kısa, kaydedilmedi."
+            )
+
+            frames = []
+
+
+        else:
+
+            sequence = np.array(
+                frames,
+                dtype=np.float32
+            )
+
+
+            np.save(
+                save_path,
+                sequence
+            )
+
+
+            print()
+            print("================================")
+            print("KAYIT BAŞARILI")
+            print("================================")
+            print(
+                f"Dosya : {save_path}"
+            )
+            print(
+                f"Shape : {sequence.shape}"
+            )
+            print(
+                f"Frame : {len(sequence)}"
+            )
+            print()
+
+
+            break
+
+
+# ========================================
+# TEMİZLE
+# ========================================
 
 cap.release()
 
@@ -665,6 +695,7 @@ cv2.destroyAllWindows()
 hand_detector.close()
 face_detector.close()
 pose_detector.close()
+
 
 print(
     "Program kapatıldı."

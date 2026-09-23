@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# IDE / Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Python build
+build/
+dist/
+*.egg-info/
+
+# Dataset
+dataset/
+
+# MediaPipe model files
+models/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Camera / generated files
+captures/
+recordings/
+outputs/
+
+# Environment / secrets
+.env
+.env.*
