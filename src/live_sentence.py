@@ -43,8 +43,10 @@ SEQUENCE_LENGTH = 90
 PREDICT_EVERY = 5
 
 CONFIDENCE_THRESHOLD = 0.70
-
+RELEASE_THRESHOLD = 0.55
+MIN_NEW_WORD_FRAMES = 3
 STABLE_PREDICTIONS = 5
+RELEASE_FRAMES = 3
 
 LABELS = [
     "BEN",
@@ -421,7 +423,11 @@ prediction_history = deque(
 
 sentence_words = []
 
-last_added_word = None
+# Son eklenen kelimenin tekrar eklenmesini engeller
+word_locked = False
+
+# İşaretin bırakıldığını anlamak için
+release_counter = 0
 
 timestamp_ms = 0
 
@@ -450,6 +456,7 @@ print()
 
 
 while True:
+    new_prediction = False
 
     success, frame = cap.read()
 
@@ -525,6 +532,12 @@ while True:
         class_id = int(
             np.argmax(probabilities)
         )
+        print(
+            " | ".join(
+                f"{LABELS[i]}: {probabilities[i] * 100:.1f}%"
+                for i in range(len(LABELS))
+            )
+        )
 
 
         current_prediction = LABELS[
@@ -535,72 +548,104 @@ while True:
         current_confidence = float(
             probabilities[class_id]
         )
+        new_prediction = True
 
 
         # ----------------------------------------------------
-        # GÜVEN EŞİĞİ
+        # İŞARET DURUMU
         # ----------------------------------------------------
 
-        if current_confidence >= CONFIDENCE_THRESHOLD:
+        if new_prediction:
 
-            prediction_history.append(
-                current_prediction
-            )
+            # Henüz bir kelime kilitli değilse yeni kelime ara
+            if not word_locked:
+
+                if current_confidence >= CONFIDENCE_THRESHOLD:
+                    prediction_history.append(current_prediction)
+
+                    # Son 5 tahminin en az 3'ü aynıysa kabul et
+                    if len(prediction_history) >= STABLE_PREDICTIONS:
+
+                        most_common, count = Counter(
+                            prediction_history
+                        ).most_common(1)[0]
+
+                        if count >= 3:
+
+                            # Kelimeyi ekle
+                            sentence_words.append(most_common)
+
+                            print("Kelime eklendi:", most_common)
+                            print("Kelime dizisi:", sentence_words)
+                            print(
+                                "Cümle:",
+                                make_sentence(sentence_words)
+                            )
+
+                            # Yeni kelime almadan önce bırakma bekle
+                            word_locked = True
+                            release_counter = 0
+                            prediction_history.clear()
+                            sequence_buffer.clear()
+
+                else:
+                    prediction_history.clear()
+
+            # Bir kelime zaten kabul edildi
+            else:
+
+                if current_confidence <= RELEASE_THRESHOLD:
+                    release_counter += 1
+                else:
+                    release_counter = 0
+
+                if release_counter >= RELEASE_FRAMES:
+
+                    word_locked = False
+                    release_counter = 0
+                    prediction_history.clear()
+                    sequence_buffer.clear()
+
+                    print("İşaret bırakıldı.")
+                    print("Yeni kelime bekleniyor...")
+
+
+        # ----------------------------------------------------
+        # İŞARET BIRAKILDI MI?
+        # ----------------------------------------------------
+
+        if new_prediction and release_counter >= RELEASE_FRAMES:
+
+            word_locked = False
+            prediction_history.clear()
 
 
         # ----------------------------------------------------
         # KARARLI TAHMİN
         # ----------------------------------------------------
 
-        if len(prediction_history) == STABLE_PREDICTIONS:
-
-            most_common = Counter(
-                prediction_history
-            ).most_common(1)[0][0]
-
-
-            count = Counter(
-                prediction_history
-            ).most_common(1)[0][1]
-
-
+        if (
+            new_prediction
+            and
+            not word_locked
+            and
+            len(prediction_history) >= STABLE_PREDICTIONS
+        ):
+            most_common, count = Counter(prediction_history).most_common(1)[0]
             # En az 4 / 5 tahmin aynıysa
             if count >= 4:
-
-                if most_common != last_added_word:
-
-                    sentence_words.append(
-                        most_common
-                    )
-
-                    last_added_word = most_common
-
-                    print(
-                        "Kelime eklendi:",
-                        most_common
-                    )
-
-
-                    print(
-                        "Kelime dizisi:",
-                        sentence_words
-                    )
-
-
-                    print(
-                        "Cümle:",
-                        make_sentence(
-                            sentence_words
-                        )
-                    )
-
-
+                sentence_words.append(most_common)
+                print("Kelime eklendi:", most_common)
+                print("Kelime dizisi:", sentence_words)
+                print("Cümle:", make_sentence(sentence_words))
+                word_locked = True
+                release_counter = 0
                 prediction_history.clear()
+                sequence_buffer.clear()
 
-
-    # ========================================================
-    # EKRAN
-    # ========================================================
+        # ====================================================
+        # EKRAN
+        # ====================================================
 
     cv2.putText(
         frame,
@@ -676,7 +721,6 @@ while True:
 
 
     if key == ord("q"):
-
         break
 
 
@@ -686,7 +730,9 @@ while True:
 
         prediction_history.clear()
 
-        last_added_word = None
+        word_locked = False
+
+        release_counter = 0
 
         print("Cümle temizlendi.")
 
