@@ -111,6 +111,7 @@ pose_detector = vision.PoseLandmarker.create_from_options(
 # ========================================
 
 def landmark_xyz(landmark):
+
     return [
         landmark.x,
         landmark.y,
@@ -119,6 +120,7 @@ def landmark_xyz(landmark):
 
 
 def empty_hand():
+
     return np.zeros(
         (21, 3),
         dtype=np.float32
@@ -126,6 +128,15 @@ def empty_hand():
 
 
 def normalize_frame(points):
+
+    """
+    combined sıralaması:
+
+    0-20    : sol el
+    21-41   : sağ el
+    42-74   : pose
+    75-108  : yüz
+    """
 
     points = points.copy()
 
@@ -136,21 +147,18 @@ def normalize_frame(points):
         neginf=0.0
     )
 
-    # combined:
-    # 0-20    sol el
-    # 21-41   sağ el
-    # 42-74   pose
-    # 75-108  yüz
-
+    # Omuzlar
     left_shoulder = points[53]
     right_shoulder = points[54]
 
+    # Omuz merkezi
     center = (
         left_shoulder + right_shoulder
     ) / 2.0
 
     points -= center
 
+    # Omuz mesafesi
     shoulder_distance = np.linalg.norm(
         left_shoulder - right_shoulder
     )
@@ -185,103 +193,86 @@ def next_number(folder):
 
 
 # ========================================
-# GÖRSEL LANDMARK ÇİZİMİ
+# LANDMARK ÇİZİM FONKSİYONLARI
 # ========================================
 
 def draw_hand_landmarks(
     frame,
-    hand_landmarks,
-    color,
-    label
+    landmarks,
+    connections,
+    point_color,
+    line_color
 ):
+
+    if landmarks is None:
+        return
 
     h, w = frame.shape[:2]
 
-    # El bağlantıları
-    connections = [
-        (0, 1), (1, 2), (2, 3), (3, 4),
-        (0, 5), (5, 6), (6, 7), (7, 8),
-        (0, 9), (9, 10), (10, 11), (11, 12),
-        (0, 13), (13, 14), (14, 15), (15, 16),
-        (0, 17), (17, 18), (18, 19), (19, 20),
-        (5, 9),
-        (9, 13),
-        (13, 17)
-    ]
+    points = []
 
-    # Bağlantıları çiz
-    for start, end in connections:
+    for lm in landmarks:
 
-        p1 = hand_landmarks[start]
-        p2 = hand_landmarks[end]
+        x = int(lm[0] * w)
+        y = int(lm[1] * h)
 
-        x1 = int(p1.x * w)
-        y1 = int(p1.y * h)
-
-        x2 = int(p2.x * w)
-        y2 = int(p2.y * h)
-
-        cv2.line(
-            frame,
-            (x1, y1),
-            (x2, y2),
-            color,
-            2
-        )
-
-    # Noktaları çiz
-    for i, landmark in enumerate(hand_landmarks):
-
-        x = int(landmark.x * w)
-        y = int(landmark.y * h)
+        points.append((x, y))
 
         cv2.circle(
             frame,
             (x, y),
-            5,
-            color,
+            4,
+            point_color,
             -1
         )
 
-        # Landmark numarası
-        cv2.putText(
+    # Bağlantılar
+    for start, end in connections:
+
+        if start >= len(points):
+            continue
+
+        if end >= len(points):
+            continue
+
+        cv2.line(
             frame,
-            str(i),
-            (x + 5, y - 5),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.35,
-            color,
-            1
-        )
-
-    # El etiketi
-    if hand_landmarks:
-
-        wrist = hand_landmarks[0]
-
-        x = int(wrist.x * w)
-        y = int(wrist.y * h)
-
-        cv2.putText(
-            frame,
-            label,
-            (x, y + 25),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.65,
-            color,
+            points[start],
+            points[end],
+            line_color,
             2
         )
 
 
 def draw_pose_landmarks(
     frame,
-    pose_landmarks
+    landmarks
 ):
+
+    if landmarks is None:
+        return
 
     h, w = frame.shape[:2]
 
+    points = []
+
+    for lm in landmarks:
+
+        x = int(lm[0] * w)
+        y = int(lm[1] * h)
+
+        points.append((x, y))
+
+        cv2.circle(
+            frame,
+            (x, y),
+            3,
+            (255, 255, 0),
+            -1
+        )
+
     # Pose bağlantıları
-    connections = [
+    pose_connections = [
         (11, 12),
 
         (11, 13),
@@ -302,64 +293,86 @@ def draw_pose_landmarks(
         (26, 28)
     ]
 
-    for start, end in connections:
+    for start, end in pose_connections:
 
-        p1 = pose_landmarks[start]
-        p2 = pose_landmarks[end]
+        if start >= len(points):
+            continue
 
-        x1 = int(p1.x * w)
-        y1 = int(p1.y * h)
-
-        x2 = int(p2.x * w)
-        y2 = int(p2.y * h)
+        if end >= len(points):
+            continue
 
         cv2.line(
             frame,
-            (x1, y1),
-            (x2, y2),
-            (0, 255, 255),
+            points[start],
+            points[end],
+            (255, 255, 0),
             2
-        )
-
-    # Pose noktaları
-    for landmark in pose_landmarks:
-
-        x = int(landmark.x * w)
-        y = int(landmark.y * h)
-
-        cv2.circle(
-            frame,
-            (x, y),
-            3,
-            (0, 255, 255),
-            -1
         )
 
 
 def draw_face_landmarks(
     frame,
-    face_landmarks
+    landmarks
 ):
+
+    if landmarks is None:
+        return
 
     h, w = frame.shape[:2]
 
-    for index in FACE_INDICES:
+    for lm in landmarks:
 
-        if index >= len(face_landmarks):
-            continue
-
-        landmark = face_landmarks[index]
-
-        x = int(landmark.x * w)
-        y = int(landmark.y * h)
+        x = int(lm[0] * w)
+        y = int(lm[1] * h)
 
         cv2.circle(
             frame,
             (x, y),
-            3,
+            2,
             (255, 0, 255),
             -1
         )
+
+
+# ========================================
+# MEDIAPIPE EL BAĞLANTILARI
+# ========================================
+
+HAND_CONNECTIONS = [
+
+    # Başparmak
+    (0, 1),
+    (1, 2),
+    (2, 3),
+    (3, 4),
+
+    # İşaret
+    (0, 5),
+    (5, 6),
+    (6, 7),
+    (7, 8),
+
+    # Orta
+    (5, 9),
+    (9, 10),
+    (10, 11),
+    (11, 12),
+
+    # Yüzük
+    (9, 13),
+    (13, 14),
+    (14, 15),
+    (15, 16),
+
+    # Serçe
+    (13, 17),
+    (17, 18),
+    (18, 19),
+    (19, 20),
+
+    # Avuç
+    (0, 17)
+]
 
 
 # ========================================
@@ -381,7 +394,10 @@ def mouse_callback(
     global recording
     global save_requested
 
-    # SAĞ TIK → KAYIT BAŞLAT
+    # ====================================
+    # SAĞ TIK → BAŞLAT
+    # ====================================
+
     if event == cv2.EVENT_RBUTTONDOWN:
 
         if not recording:
@@ -394,7 +410,11 @@ def mouse_callback(
             print("================================")
             print()
 
-    # SOL TIK → KAYDI BİTİR
+
+    # ====================================
+    # SOL TIK → BİTİR
+    # ====================================
+
     elif event == cv2.EVENT_LBUTTONDOWN:
 
         if recording:
@@ -409,10 +429,11 @@ def mouse_callback(
 
 print()
 print("========================================")
-print("       TİD VERİ KAYIT V3")
+print("       TİD VERİ KAYIT V2")
 print("========================================")
 print()
 
+print("0 - DEFAULT")
 print("1 - BEN")
 print("2 - SEN")
 print("3 - SEVMEK")
@@ -424,6 +445,7 @@ choice = input("Kelime seç: ").strip()
 
 
 labels = {
+    "0": "default",
     "1": "ben",
     "2": "sen",
     "3": "sevmek",
@@ -486,7 +508,7 @@ if not cap.isOpened():
 # PENCERE
 # ========================================
 
-WINDOW_NAME = "TID Dataset Recorder V3"
+WINDOW_NAME = "TID Dataset Recorder V2"
 
 cv2.namedWindow(
     WINDOW_NAME
@@ -503,8 +525,11 @@ cv2.setMouseCallback(
 # ========================================
 
 print()
-print(f"Kelime: {label.upper()}")
+print(
+    f"Kelime: {label.upper()}"
+)
 print()
+
 print("SAĞ TIK  = Kaydı başlat")
 print("SOL TIK  = Kaydı bitir ve kaydet")
 print("Q        = Çıkış")
@@ -542,10 +567,12 @@ while True:
         cv2.COLOR_BGR2RGB
     )
 
+
     mp_image = mp.Image(
         image_format=mp.ImageFormat.SRGB,
         data=rgb
     )
+
 
     timestamp_ms += int(
         1000 / FPS
@@ -562,6 +589,7 @@ while True:
             timestamp_ms
         )
     )
+
 
     left_hand = empty_hand()
     right_hand = empty_hand()
@@ -584,6 +612,7 @@ while True:
                 dtype=np.float32
             )
 
+
             if (
                 hand_result.handedness
                 and i < len(
@@ -597,39 +626,17 @@ while True:
                     .category_name
                 )
 
-                # ------------------------
-                # SOL EL
-                # ------------------------
 
                 if handedness == "Left":
 
                     left_hand = points
-
                     left_detected = True
 
-                    draw_hand_landmarks(
-                        frame,
-                        hand_landmarks,
-                        (0, 255, 0),
-                        "SOL EL"
-                    )
-
-                # ------------------------
-                # SAĞ EL
-                # ------------------------
 
                 elif handedness == "Right":
 
                     right_hand = points
-
                     right_detected = True
-
-                    draw_hand_landmarks(
-                        frame,
-                        hand_landmarks,
-                        (255, 0, 0),
-                        "SAG EL"
-                    )
 
 
     # ====================================
@@ -641,6 +648,9 @@ while True:
         dtype=np.float32
     )
 
+    pose_detected = False
+
+
     pose_result = (
         pose_detector.detect_for_video(
             mp_image,
@@ -648,28 +658,19 @@ while True:
         )
     )
 
-    pose_detected = False
 
     if pose_result.pose_landmarks:
-
-        pose_landmarks = (
-            pose_result.pose_landmarks[0]
-        )
 
         pose = np.array(
             [
                 landmark_xyz(lm)
-                for lm in pose_landmarks
+                for lm in pose_result
+                .pose_landmarks[0]
             ],
             dtype=np.float32
         )
 
         pose_detected = True
-
-        draw_pose_landmarks(
-            frame,
-            pose_landmarks
-        )
 
 
     # ====================================
@@ -681,6 +682,9 @@ while True:
         dtype=np.float32
     )
 
+    face_detected = False
+
+
     face_result = (
         face_detector.detect_for_video(
             mp_image,
@@ -688,7 +692,6 @@ while True:
         )
     )
 
-    face_detected = False
 
     if face_result.face_landmarks:
 
@@ -696,9 +699,8 @@ while True:
             face_result.face_landmarks[0]
         )
 
-        face_detected = True
-
         selected = []
+
 
         for index in FACE_INDICES:
 
@@ -716,14 +718,58 @@ while True:
                     [0.0, 0.0, 0.0]
                 )
 
+
         face = np.array(
             selected,
             dtype=np.float32
         )
 
+        face_detected = True
+
+
+    # ====================================
+    # LANDMARKLARI EKRANA ÇİZ
+    # ====================================
+
+    # Sol el
+    if left_detected:
+
+        draw_hand_landmarks(
+            frame,
+            left_hand,
+            HAND_CONNECTIONS,
+            (0, 255, 0),
+            (0, 180, 0)
+        )
+
+
+    # Sağ el
+    if right_detected:
+
+        draw_hand_landmarks(
+            frame,
+            right_hand,
+            HAND_CONNECTIONS,
+            (0, 0, 255),
+            (0, 0, 180)
+        )
+
+
+    # Pose
+    if pose_detected:
+
+        draw_pose_landmarks(
+            frame,
+            pose
+        )
+
+
+    # Face
+    if face_detected:
+
         draw_face_landmarks(
             frame,
-            face_landmarks
+            face
         )
 
 
@@ -765,55 +811,7 @@ while True:
 
 
     # ====================================
-    # DURUM PANELİ
-    # ====================================
-
-    panel_x = 20
-    panel_y = 120
-
-    cv2.putText(
-        frame,
-        f"Sol el : {'OK' if left_detected else 'YOK'}",
-        (panel_x, panel_y),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (0, 255, 0) if left_detected else (0, 0, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Sag el : {'OK' if right_detected else 'YOK'}",
-        (panel_x, panel_y + 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (255, 0, 0) if right_detected else (0, 0, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Pose   : {'OK' if pose_detected else 'YOK'}",
-        (panel_x, panel_y + 60),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (0, 255, 255) if pose_detected else (0, 0, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Yuz    : {'OK' if face_detected else 'YOK'}",
-        (panel_x, panel_y + 90),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.65,
-        (255, 0, 255) if face_detected else (0, 0, 255),
-        2
-    )
-
-
-    # ====================================
-    # KAYIT DURUMU
+    # ÜST BİLGİ
     # ====================================
 
     if recording:
@@ -830,7 +828,7 @@ while True:
 
         cv2.putText(
             frame,
-            f"Frame: {len(frames)} / {MAX_FRAMES}",
+            f"Frame: {len(frames)}/{MAX_FRAMES}",
             (20, 80),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
@@ -849,6 +847,37 @@ while True:
             (0, 255, 0),
             2
         )
+
+
+    # ====================================
+    # LANDMARK DURUMU
+    # ====================================
+
+    hand_count = int(
+        left_detected
+    ) + int(
+        right_detected
+    )
+
+
+    status = (
+        f"EL: {hand_count}/2"
+        f" | POSE: "
+        f"{'OK' if pose_detected else 'YOK'}"
+        f" | YUZ: "
+        f"{'OK' if face_detected else 'YOK'}"
+    )
+
+
+    cv2.putText(
+        frame,
+        status,
+        (20, 115),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        2
+    )
 
 
     # ====================================
@@ -882,6 +911,11 @@ while True:
 
     key = cv2.waitKey(1) & 0xFF
 
+
+    # ====================================
+    # Q → ÇIKIŞ
+    # ====================================
+
     if key == ord("q"):
 
         break
@@ -895,6 +929,11 @@ while True:
 
         save_requested = False
 
+
+        # --------------------------------
+        # ÇOK KISA KAYIT
+        # --------------------------------
+
         if len(frames) < MIN_FRAMES:
 
             print(
@@ -907,6 +946,11 @@ while True:
 
             frames = []
 
+
+        # --------------------------------
+        # KAYDET
+        # --------------------------------
+
         else:
 
             sequence = np.array(
@@ -914,25 +958,32 @@ while True:
                 dtype=np.float32
             )
 
+
             np.save(
                 save_path,
                 sequence
             )
 
+
             print()
             print("================================")
             print("KAYIT BAŞARILI")
             print("================================")
+
             print(
                 f"Dosya : {save_path}"
             )
+
             print(
                 f"Shape : {sequence.shape}"
             )
+
             print(
                 f"Frame : {len(sequence)}"
             )
+
             print()
+
 
             break
 

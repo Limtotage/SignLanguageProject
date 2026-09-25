@@ -42,20 +42,39 @@ SEQUENCE_LENGTH = 90
 
 PREDICT_EVERY = 5
 
+# Bir kelimeyi kabul etmek için gereken güven
 CONFIDENCE_THRESHOLD = 0.70
-RELEASE_THRESHOLD = 0.55
-MIN_NEW_WORD_FRAMES = 3
+
+# DEFAULT kabul etmek için gereken güven
+DEFAULT_CONFIDENCE_THRESHOLD = 0.60
+
+# Bir kelimenin kabul edilmesi için
+# son 5 tahminin en az 4'ü aynı olmalı
 STABLE_PREDICTIONS = 5
-RELEASE_FRAMES = 3
+WORD_STABLE_COUNT = 4
+
+# Kelime kilidinin açılması için
+# DEFAULT tahmini kaç kez üst üste görülmeli?
+DEFAULT_STABLE_COUNT = 3
+
+
+# ============================================================
+# SINIFLAR
+# ============================================================
 
 LABELS = [
     "BEN",
     "SEN",
     "SEVMEK",
     "MERHABA",
-    "TESEKKUR"
+    "TESEKKUR",
+    "DEFAULT"
 ]
 
+
+# ============================================================
+# YÜZ LANDMARKLARI
+# ============================================================
 
 FACE_INDICES = [
     46, 53, 52, 65, 55,
@@ -194,7 +213,6 @@ def extract_frame(mp_image, timestamp_ms):
     left_hand = empty_hand()
     right_hand = empty_hand()
 
-
     if hand_result.hand_landmarks:
 
         for i, hand_landmarks in enumerate(
@@ -324,7 +342,6 @@ def extract_frame(mp_image, timestamp_ms):
 def make_sentence(words):
 
     if not words:
-
         return ""
 
 
@@ -384,6 +401,7 @@ def make_sentence(words):
 
             result.append("teşekkür")
 
+
     if not result:
 
         return ""
@@ -421,13 +439,27 @@ prediction_history = deque(
     maxlen=STABLE_PREDICTIONS
 )
 
+default_history = deque(
+    maxlen=DEFAULT_STABLE_COUNT
+)
+
 sentence_words = []
 
-# Son eklenen kelimenin tekrar eklenmesini engeller
+
+# ------------------------------------------------------------
+# WORD LOCK
+# ------------------------------------------------------------
+#
+# False:
+# Yeni kelime aranıyor.
+#
+# True:
+# Bir kelime kabul edildi.
+# Önce DEFAULT bekleniyor.
+#
+
 word_locked = False
 
-# İşaretin bırakıldığını anlamak için
-release_counter = 0
 
 timestamp_ms = 0
 
@@ -447,6 +479,8 @@ print("========================================")
 print("       TİD CÜMLE OLUŞTURUCU")
 print("========================================")
 print()
+print("DEFAULT = Hazır / işaret yok")
+print()
 print("Bir işaret yap.")
 print("Kararlı tahmin cümleye eklenir.")
 print()
@@ -456,7 +490,6 @@ print()
 
 
 while True:
-    new_prediction = False
 
     success, frame = cap.read()
 
@@ -532,12 +565,6 @@ while True:
         class_id = int(
             np.argmax(probabilities)
         )
-        print(
-            " | ".join(
-                f"{LABELS[i]}: {probabilities[i] * 100:.1f}%"
-                for i in range(len(LABELS))
-            )
-        )
 
 
         current_prediction = LABELS[
@@ -548,104 +575,173 @@ while True:
         current_confidence = float(
             probabilities[class_id]
         )
-        new_prediction = True
 
 
         # ----------------------------------------------------
-        # İŞARET DURUMU
+        # DEBUG
         # ----------------------------------------------------
 
-        if new_prediction:
+        print(
+            " | ".join(
+                f"{LABELS[i]}: "
+                f"{probabilities[i] * 100:.1f}%"
+                for i in range(len(LABELS))
+            )
+        )
 
-            # Henüz bir kelime kilitli değilse yeni kelime ara
-            if not word_locked:
 
-                if current_confidence >= CONFIDENCE_THRESHOLD:
-                    prediction_history.append(current_prediction)
+        # ====================================================
+        # DURUM 1:
+        # YENİ KELİME BEKLENİYOR
+        # ====================================================
 
-                    # Son 5 tahminin en az 3'ü aynıysa kabul et
-                    if len(prediction_history) >= STABLE_PREDICTIONS:
+        if not word_locked:
 
-                        most_common, count = Counter(
-                            prediction_history
-                        ).most_common(1)[0]
+            # -----------------------------------------------
+            # DEFAULT GELİRSE
+            # -----------------------------------------------
 
-                        if count >= 3:
+            if (
+                current_prediction == "DEFAULT"
+                and
+                current_confidence >= DEFAULT_CONFIDENCE_THRESHOLD
+            ):
 
-                            # Kelimeyi ekle
-                            sentence_words.append(most_common)
+                # Kelime geçmişini temiz tut
+                prediction_history.clear()
 
-                            print("Kelime eklendi:", most_common)
-                            print("Kelime dizisi:", sentence_words)
-                            print(
-                                "Cümle:",
-                                make_sentence(sentence_words)
-                            )
+                default_history.append(
+                    "DEFAULT"
+                )
 
-                            # Yeni kelime almadan önce bırakma bekle
-                            word_locked = True
-                            release_counter = 0
-                            prediction_history.clear()
-                            sequence_buffer.clear()
-
-                else:
-                    prediction_history.clear()
-
-            # Bir kelime zaten kabul edildi
             else:
 
-                if current_confidence <= RELEASE_THRESHOLD:
-                    release_counter += 1
-                else:
-                    release_counter = 0
-
-                if release_counter >= RELEASE_FRAMES:
-
-                    word_locked = False
-                    release_counter = 0
-                    prediction_history.clear()
-                    sequence_buffer.clear()
-
-                    print("İşaret bırakıldı.")
-                    print("Yeni kelime bekleniyor...")
+                # DEFAULT değilse DEFAULT geçmişini kır
+                default_history.clear()
 
 
-        # ----------------------------------------------------
-        # İŞARET BIRAKILDI MI?
-        # ----------------------------------------------------
+            # -----------------------------------------------
+            # NORMAL KELİME GELİRSE
+            # -----------------------------------------------
 
-        if new_prediction and release_counter >= RELEASE_FRAMES:
+            if (
+                current_prediction != "DEFAULT"
+                and
+                current_confidence >= CONFIDENCE_THRESHOLD
+            ):
 
-            word_locked = False
-            prediction_history.clear()
+                prediction_history.append(
+                    current_prediction
+                )
 
+            elif current_prediction != "DEFAULT":
 
-        # ----------------------------------------------------
-        # KARARLI TAHMİN
-        # ----------------------------------------------------
-
-        if (
-            new_prediction
-            and
-            not word_locked
-            and
-            len(prediction_history) >= STABLE_PREDICTIONS
-        ):
-            most_common, count = Counter(prediction_history).most_common(1)[0]
-            # En az 4 / 5 tahmin aynıysa
-            if count >= 4:
-                sentence_words.append(most_common)
-                print("Kelime eklendi:", most_common)
-                print("Kelime dizisi:", sentence_words)
-                print("Cümle:", make_sentence(sentence_words))
-                word_locked = True
-                release_counter = 0
+                # Güvensiz tahmini kararlılık geçmişine alma
                 prediction_history.clear()
+
+
+            # -----------------------------------------------
+            # KELİME KARARLILIĞI
+            # -----------------------------------------------
+
+            if len(prediction_history) >= STABLE_PREDICTIONS:
+
+                most_common, count = Counter(
+                    prediction_history
+                ).most_common(1)[0]
+
+
+                if count >= WORD_STABLE_COUNT:
+
+                    # ---------------------------------------
+                    # KELİMEYİ EKLE
+                    # ---------------------------------------
+
+                    sentence_words.append(
+                        most_common
+                    )
+
+
+                    print()
+                    print("========================================")
+                    print(
+                        "KELİME EKLENDİ:",
+                        most_common
+                    )
+                    print(
+                        "KELİME DİZİSİ:",
+                        sentence_words
+                    )
+                    print(
+                        "CÜMLE:",
+                        make_sentence(sentence_words)
+                    )
+                    print("========================================")
+                    print()
+
+
+                    # ---------------------------------------
+                    # KİLİTLE
+                    # ---------------------------------------
+
+                    word_locked = True
+
+                    prediction_history.clear()
+                    default_history.clear()
+
+
+        # ====================================================
+        # DURUM 2:
+        # KELİME KİLİTLİ
+        # ====================================================
+
+        else:
+
+            # ------------------------------------------------
+            # SADECE DEFAULT ARIYORUZ
+            # ------------------------------------------------
+
+            if (
+                current_prediction == "DEFAULT"
+                and
+                current_confidence >= DEFAULT_CONFIDENCE_THRESHOLD
+            ):
+
+                default_history.append(
+                    "DEFAULT"
+                )
+
+            else:
+
+                default_history.clear()
+
+
+            # ------------------------------------------------
+            # DEFAULT KARARLI HALE GELDİ
+            # ------------------------------------------------
+
+            if len(default_history) >= DEFAULT_STABLE_COUNT:
+
+                print()
+                print("İşaret bırakıldı.")
+                print("DEFAULT kararlı.")
+                print("Yeni kelime bekleniyor...")
+                print()
+
+
+                word_locked = False
+
+                prediction_history.clear()
+                default_history.clear()
+
+                # Eski işaretin sonraki kelimeye
+                # sızmasını engelle
                 sequence_buffer.clear()
 
-        # ====================================================
-        # EKRAN
-        # ====================================================
+
+    # ========================================================
+    # EKRAN
+    # ========================================================
 
     cv2.putText(
         frame,
@@ -669,6 +765,34 @@ while True:
     )
 
 
+    # --------------------------------------------------------
+    # DURUM
+    # --------------------------------------------------------
+
+    if word_locked:
+
+        status_text = "DURUM: ISARET BEKLENIYOR -> DEFAULT"
+
+    else:
+
+        status_text = "DURUM: YENI KELIME BEKLENIYOR"
+
+
+    cv2.putText(
+        frame,
+        status_text,
+        (20, 105),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 255, 255),
+        2
+    )
+
+
+    # ========================================================
+    # CÜMLE
+    # ========================================================
+
     sentence = make_sentence(
         sentence_words
     )
@@ -677,7 +801,7 @@ while True:
     cv2.putText(
         frame,
         "CUMLE:",
-        (20, 125),
+        (20, 145),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
         (255, 255, 255),
@@ -688,7 +812,7 @@ while True:
     cv2.putText(
         frame,
         sentence[:45],
-        (20, 160),
+        (20, 180),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
         (0, 255, 255),
@@ -707,6 +831,10 @@ while True:
     )
 
 
+    # ========================================================
+    # GÖSTER
+    # ========================================================
+
     cv2.imshow(
         "TID Sentence",
         frame
@@ -721,6 +849,7 @@ while True:
 
 
     if key == ord("q"):
+
         break
 
 
@@ -730,9 +859,11 @@ while True:
 
         prediction_history.clear()
 
+        default_history.clear()
+
         word_locked = False
 
-        release_counter = 0
+        sequence_buffer.clear()
 
         print("Cümle temizlendi.")
 

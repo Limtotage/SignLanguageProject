@@ -10,6 +10,7 @@ DATASET_DIR = os.path.join(BASE_DIR, "dataset")
 PROCESSED_DIR = os.path.join(BASE_DIR, "processed")
 
 LABELS = [
+    "default",
     "ben",
     "sen",
     "sevmek",
