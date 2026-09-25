@@ -43,6 +43,7 @@ SEQUENCE_LENGTH = 90
 PREDICT_EVERY = 5
 
 LABELS = [
+    "DEFAULT",
     "BEN",
     "SEN",
     "SEVMEK",

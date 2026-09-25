@@ -63,12 +63,12 @@ DEFAULT_STABLE_COUNT = 3
 # ============================================================
 
 LABELS = [
+    "DEFAULT",
     "BEN",
     "SEN",
     "SEVMEK",
     "MERHABA",
     "TESEKKUR",
-    "DEFAULT"
 ]
 
 
@@ -698,7 +698,7 @@ while True:
         else:
 
             # ------------------------------------------------
-            # SADECE DEFAULT ARIYORUZ
+            # KELİME KİLİTLİYKEN SADECE DEFAULT ARIYORUZ
             # ------------------------------------------------
 
             if (
@@ -720,24 +720,25 @@ while True:
             # DEFAULT KARARLI HALE GELDİ
             # ------------------------------------------------
 
-            if len(default_history) >= DEFAULT_STABLE_COUNT:
+            if (
+                len(default_history)
+                >= DEFAULT_STABLE_COUNT
+            ):
 
                 print()
-                print("İşaret bırakıldı.")
-                print("DEFAULT kararlı.")
-                print("Yeni kelime bekleniyor...")
+                print("========================================")
+                print("İŞARET BIRAKILDI")
+                print("DEFAULT KARARLI")
+                print("YENİ KELİME BEKLENİYOR...")
+                print("========================================")
                 print()
 
-
+                # Kilidi aç
                 word_locked = False
 
+                # Geçmiş tahminleri temizle
                 prediction_history.clear()
                 default_history.clear()
-
-                # Eski işaretin sonraki kelimeye
-                # sızmasını engelle
-                sequence_buffer.clear()
-
 
     # ========================================================
     # EKRAN
