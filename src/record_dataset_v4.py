@@ -433,12 +433,27 @@ print("       TİD VERİ KAYIT V2")
 print("========================================")
 print()
 
-print("0 - DEFAULT")
-print("1 - BEN")
-print("2 - SEN")
-print("3 - SEVMEK")
-print("4 - MERHABA")
-print("5 - TEŞEKKÜR")
+print("0  - DEFAULT")
+print("1  - BEN")
+print("2  - SEN")
+print("3  - SEVMEK")
+print("4  - MERHABA")
+print("5  - TEŞEKKÜR")
+print("6  - EVET")
+print("7  - HAYIR")
+print("8  - GELMEK")
+print("9  - GITMEK")
+print("10 - YARDIM")
+print("11 - NE")
+print("12 - NEREDE")
+print("13 - SU")
+print("14 - YEMEK")
+print("15 - ARKADAS")
+print("16 - BUGUN")
+print("17 - YARIN")
+print("18 - IYI")
+print("19 - KOTU")
+print("20 - TEKRAR")
 print()
 
 choice = input("Kelime seç: ").strip()
@@ -450,7 +465,22 @@ labels = {
     "2": "sen",
     "3": "sevmek",
     "4": "merhaba",
-    "5": "tesekkur"
+    "5": "tesekkur",
+    "6": "evet",
+    "7": "hayir",
+    "8": "gelmek",
+    "9": "gitmek",
+    "10": "yardim",
+    "11": "ne",
+    "12": "nerede",
+    "13": "su",
+    "14": "yemek",
+    "15": "arkadas",
+    "16": "bugun",
+    "17": "yarin",
+    "18": "iyi",
+    "19": "kotu",
+    "20": "tekrar"
 }
 
 

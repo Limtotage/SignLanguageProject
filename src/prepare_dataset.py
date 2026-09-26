@@ -15,7 +15,22 @@ LABELS = [
     "sen",
     "sevmek",
     "merhaba",
-    "tesekkur"
+    "tesekkur",
+    "evet",
+    "hayir",
+    "gelmek",
+    "gitmek",
+    "yardim",
+    "ne",
+    "nerede",
+    "su",
+    "yemek_food",
+    "arkadas",
+    "bugun",
+    "yarin",
+    "iyi",
+    "kotu",
+    "tekrar"
 ]
 
 LABEL_TO_ID = {

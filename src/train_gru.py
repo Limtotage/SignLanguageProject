@@ -36,7 +36,7 @@ MODEL_PATH = os.path.join(
 # AYARLAR
 # ========================================
 
-NUM_CLASSES = 6
+NUM_CLASSES = 21
 
 RANDOM_STATE = 42
 

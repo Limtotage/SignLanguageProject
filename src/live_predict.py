@@ -48,7 +48,22 @@ LABELS = [
     "SEN",
     "SEVMEK",
     "MERHABA",
-    "TESEKKUR"
+    "TESEKKUR",
+    "EVET",
+    "HAYIR",
+    "GELMEK",
+    "GITMEK",
+    "YARDIM",
+    "NE",
+    "NEREDE",
+    "SU",
+    "YEMEK",
+    "ARKADAS",
+    "BUGUN",
+    "YARIN",
+    "IYI",
+    "KOTU",
+    "TEKRAR"
 ]
 
 
