@@ -855,14 +855,16 @@ while True:
             (0, 0, 255),
             3
         )
-
+        colorx = (0,0,255)
+        if len(frames)>90:
+            colorx = (255,0,0)
         cv2.putText(
             frame,
             f"Frame: {len(frames)}/{MAX_FRAMES}",
             (20, 80),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.7,
-            (0, 0, 255),
+            colorx,
             2
         )
 
