@@ -72,8 +72,12 @@ LABELS = [
     "EVET",
     "HAYIR",
     "YARDIM",
+    "NE",
+    "NEREDE",
     "SU",
+    "ARKADAS",
     "IYI",
+    "KOTU",
     "TEKRAR"
 ]
 

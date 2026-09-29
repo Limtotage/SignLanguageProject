@@ -19,8 +19,12 @@ LABELS = [
     "evet",
     "hayir",
     "yardim",
+    "ne",
+    "nerede",
     "su",
+    "arkadas",
     "iyi",
+    "kotu",
     "tekrar"
 ]
 

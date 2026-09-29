@@ -1,4 +1,4 @@
 BUgün EKLENENLER => Evet,Hayır,YRDIM VE su kelimeleri eklendi. kelimler hatalı kaydedilmiş olabilir. iliride sorunçıkarsa  b kelimlerei kaldırıp tekrar dene. kayıt 8-9 sn sürüyordu.
 öğleden sonra eklenen iyi ve tekrar kelimelerinde sorun görmedim belki iyide elleri karıştırmış olabilir. sol ve sağ el ile denenebilir.
 Ertesi gün:
-Ne Nerede Arkadaş kelimeleri eklendi. sıkıntı yok gibi ne ve verede biraz benziyor.
+Ne Nerede Arkadaş ve Kötü kelimeleri eklendi. sıkıntı yok gibi live predict düzgün
