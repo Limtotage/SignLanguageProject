@@ -51,18 +51,9 @@ LABELS = [
     "TESEKKUR",
     "EVET",
     "HAYIR",
-    "GELMEK",
-    "GITMEK",
     "YARDIM",
-    "NE",
-    "NEREDE",
     "SU",
-    "YEMEK",
-    "ARKADAS",
-    "BUGUN",
-    "YARIN",
     "IYI",
-    "KOTU",
     "TEKRAR"
 ]
 

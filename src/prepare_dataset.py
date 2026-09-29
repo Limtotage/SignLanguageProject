@@ -18,18 +18,9 @@ LABELS = [
     "tesekkur",
     "evet",
     "hayir",
-    "gelmek",
-    "gitmek",
     "yardim",
-    "ne",
-    "nerede",
     "su",
-    "yemek_food",
-    "arkadas",
-    "bugun",
-    "yarin",
     "iyi",
-    "kotu",
     "tekrar"
 ]
 
