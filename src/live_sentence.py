@@ -7,6 +7,7 @@ import tensorflow as tf
 from collections import deque, Counter
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
+from sentence_engine import build_sentence
 
 
 # ============================================================
@@ -71,11 +72,16 @@ LABELS = [
     "TESEKKUR",
     "EVET",
     "HAYIR",
+    "GELMEK",
+    "GITMEK",
     "YARDIM",
     "NE",
     "NEREDE",
     "SU",
+    "YEMEK",
     "ARKADAS",
+    "BUGUN",
+    "YARIN",
     "IYI",
     "KOTU",
     "TEKRAR"
@@ -346,80 +352,6 @@ def extract_frame(mp_image, timestamp_ms):
 
 
 # ============================================================
-# TÜRKÇE CÜMLE OLUŞTURUCU
-# ============================================================
-
-def make_sentence(words):
-
-    if not words:
-        return ""
-
-
-    # BEN + SEN + SEVMEK
-    if words == [
-        "BEN",
-        "SEN",
-        "SEVMEK"
-    ]:
-
-        return "Ben seni seviyorum."
-
-
-    # MERHABA
-    if words == ["MERHABA"]:
-
-        return "Merhaba."
-
-
-    # TESEKKUR
-    if words == ["TESEKKUR"]:
-
-        return "Teşekkür ederim."
-
-
-    # BEN + TESEKKUR
-    if words == [
-        "BEN",
-        "TESEKKUR"
-    ]:
-
-        return "Ben teşekkür ederim."
-
-
-    # Genel basit dönüşüm
-    result = []
-
-    for word in words:
-
-        if word == "BEN":
-
-            result.append("Ben")
-
-        elif word == "SEN":
-
-            result.append("sen")
-
-        elif word == "SEVMEK":
-
-            result.append("sevmek")
-
-        elif word == "MERHABA":
-
-            result.append("merhaba")
-
-        elif word == "TESEKKUR":
-
-            result.append("teşekkür")
-
-
-    if not result:
-
-        return ""
-
-    return " ".join(result) + "."
-
-
-# ============================================================
 # KAMERA
 # ============================================================
 
@@ -684,7 +616,7 @@ while True:
                     )
                     print(
                         "CÜMLE:",
-                        make_sentence(sentence_words)
+                        build_sentence(sentence_words)
                     )
                     print("========================================")
                     print()
@@ -804,7 +736,7 @@ while True:
     # CÜMLE
     # ========================================================
 
-    sentence = make_sentence(
+    sentence = build_sentence(
         sentence_words
     )
 
