@@ -2,3 +2,5 @@ BUgün EKLENENLER => Evet,Hayır,YRDIM VE su kelimeleri eklendi. kelimler hatal�
 öğleden sonra eklenen iyi ve tekrar kelimelerinde sorun görmedim belki iyide elleri karıştırmış olabilir. sol ve sağ el ile denenebilir.
 Ertesi gün:
 Ne Nerede Arkadaş ve Kötü kelimeleri eklendi. sıkıntı yok gibi live predict düzgün
+son gün:
+2 kelime kaldı
